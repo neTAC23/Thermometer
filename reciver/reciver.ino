@@ -5,6 +5,7 @@
 #include <SPI.h>
 // #include <nRF24L01.h>
 #include <RF24.h>
+#include <TimeLib.h>
 /********************************************************************/
 // Data wire is plugged into pin 2 on the Arduino
 #define CLK 2
@@ -38,6 +39,8 @@ int i, msb, lsb, mfraction, lfraction, count = 1;
 float to;
 bool timeout = false;
 unsigned long started_waiting_at;
+int timeout_counter = 0;
+bool err = false;
 
 // display the temperature on the display
 void display_three_digits(float temp, int counter){
@@ -51,7 +54,7 @@ void display_three_digits(float temp, int counter){
   msb = i / 10;
   uint8_t data[] = {};
   data[0] = display.encodeDigit(msb);
-  data[1] = display.encodeDigit(lsb);
+  data[1] = 0x80 | display.encodeDigit(lsb);
   data[2] = display.encodeDigit(mfraction);
   if (count == 1){
     data[3] = display.encodeDigit(lfraction);
@@ -68,6 +71,11 @@ void display_three_digits(float temp, int counter){
     display.setSegments(data, 1, 3);
     count = 0;
   }
+}
+
+void display_err(){
+  uint8_t err_data[] = {0x79, 0x77, 0x77, 0x0};
+  display.setSegments(err_data);
 }
 
 // main loop
@@ -93,17 +101,34 @@ void loop()
     to = millis() / 1000;
     Serial.println("got timeout after ");
     Serial.print(to);
+    temp = last_temp;
+    timeout_counter++;
   }
-  if (!timeout) {
+  else {
     radio.read(&temp, sizeof(temp));
     last_temp = temp;
+    timeout_counter = 0;
+    if(err){
+      err = false;
+      count = 0; 
+    }
   }
-  if (timeout) {
-    temp = last_temp;
+
+  if (timeout_counter > 100){
+    display_err();
+    err = true; 
   }
-  Serial.println (temp);
-  uint8_t data[] = {};
-  display_three_digits(temp, count);
+  else{
+    setTime(21,34,30,17,4,2018);
+    char buffer [50];
+    int i=sprintf (buffer, "%d/%d %d:%d:%d",day(), month(), hour(), minute(), second());
+    for(int l= 0; l<=i; l++) 
+      Serial.print(buffer[l]);
+    Serial.print(", ");
+    Serial.println (temp);
+    display_three_digits(temp, count);
+  }
+
   count++;
   radio.stopListening();
   radio.write(&AckfR, sizeof(AckfR));
