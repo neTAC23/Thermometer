@@ -25,7 +25,7 @@ void setup() {
   display.setSegments(data);
   uint8_t segto = 0x80;
   display.setSegments(&segto, 1, 1);
-
+  setTime(21,34,30,17,4,2018);
   Serial.begin(9600);
   radio.begin();
   radio.openWritingPipe(addresses[0]); // 00002
@@ -41,6 +41,8 @@ bool timeout = false;
 unsigned long started_waiting_at;
 int timeout_counter = 0;
 bool err = false;
+char buffer [50];
+int j, k;
 
 // display the temperature on the display
 void display_three_digits(float temp, int counter){
@@ -98,9 +100,10 @@ void loop()
   }
   if (timeout) {
     x = 0;
-    to = millis() / 1000;
-    Serial.println("got timeout after ");
-    Serial.print(to);
+    Serial.print("got timeout at ");
+    k=sprintf (buffer, "%d/%d %d:%d:%d\n",day(), month(), hour(), minute(), second());
+    for(int l= 0; l<=k; l++) 
+      Serial.print(buffer[l]);
     temp = last_temp;
     timeout_counter++;
   }
@@ -112,20 +115,19 @@ void loop()
       err = false;
       count = 0; 
     }
+    j=sprintf (buffer, "%d/%d %d:%d:%d",day(), month(), hour(), minute(), second());
+    for(int l= 0; l<=j; l++) 
+      Serial.print(buffer[l]);
+    Serial.print(", ");
+    Serial.println (temp);
   }
 
-  if (timeout_counter > 100){
+  if (timeout_counter > 1){
     display_err();
     err = true; 
   }
   else{
-    setTime(21,34,30,17,4,2018);
-    char buffer [50];
-    int i=sprintf (buffer, "%d/%d %d:%d:%d",day(), month(), hour(), minute(), second());
-    for(int l= 0; l<=i; l++) 
-      Serial.print(buffer[l]);
-    Serial.print(", ");
-    Serial.println (temp);
+    
     display_three_digits(temp, count);
   }
 
